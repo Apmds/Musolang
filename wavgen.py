@@ -15,43 +15,40 @@ def add_tone(start_time, freq, tone_duration, output, sample_rate, amplitude=0.5
 def main():
     parser = argparse.ArgumentParser(
         prog="wavgen.py",
-        description="Generates a .wav file based on a CSV file of frequencies and timestamps."
+        description="Generates a .wav file based on a file of frequencies and timestamps."
     )
-    parser.add_argument("freqs", help="csv file with audio data. Each row follows this format: <start_time(s)>,<frequency(Hz)>,<duration(s)>")
-    parser.add_argument("-i", "--ignore", action="store_true", help="Ignore the first row")
+    parser.add_argument("freqs", help="file with audio data. Each line is either empty or contains a frequency.")
+    parser.add_argument("-i", "--interval", type=float, help="Time that each frequency lasts.", default=0.1)
     parser.add_argument("-o", "--output", help="Name of output file", default="tones.wav")
-    parser.add_argument("-d", "--duration", type=int, required=True, help="Time duration of file, in seconds")
+    parser.add_argument("-d", "--duration", type=int, required=True, help="Time duration of file, in seconds.")
     parser.add_argument("-s", "--sample", type=int, help="Outputs sample rate in Hz.", default=44100)
 
     args = parser.parse_args()
-
 
     # Settings
     sample_rate = args.sample
     file_duration = args.duration
     output = np.zeros(int(sample_rate * file_duration))  # silent base track
 
-    with open(args.freqs, "r") as csvfile:
-        reader = csv.reader(csvfile)
+    start_time = 0.0
+    duration = args.interval
 
-        for i, row in enumerate(reader):
-            if i == 0 and args.ignore:
+    with open(args.freqs, "r") as csvfile:
+
+        for i, line in enumerate(csvfile):
+            # Ignore empty lines
+            if len(line.strip()) == 0:
                 continue
             
-            if len(row) != 3:
-                print(f"Wrong row formatting in row {i}: Invalid number of arguments")
-                exit(1)
-            
             try:
-                start_time = float(row[0])
-                freq = float(row[1])
-                duration = float(row[2])
+                freq = float(line)
 
                 # Add tones at specific times
                 add_tone(start_time=start_time, freq=freq, tone_duration=duration, output=output, sample_rate=sample_rate)
+                start_time += duration
 
             except ValueError:
-                print(f"Wrong row formatting in row {i}: All row elements must be real numbers.")
+                print(f"Wrong line formatting in line {i}: Line must only contain a number.")
                 exit(1)
 
     # Normalize to avoid clipping

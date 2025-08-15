@@ -6,9 +6,12 @@ Internally, the language obtains the prevalent/major frequency in an interval an
 
 ## Variables
 
-Most frequencies represent variables that store either integers or strings of characters.
+Most frequencies represent variables that store either numbers or strings of characters.
 
-If a frequency does not have an action bound to it and is not initialized, then it's ignored.
+A frequency is ignored if it:
+- Doesn't have an action bound to it
+- Isn't an argument to an action
+- Isn't initialized
 
 All variables have global scope and a default value of 0.
 
@@ -26,11 +29,11 @@ The table below contains information about the action frequencies. For **encasin
 | :------------: | ---------------- | -------- | :-------: | ----------- |
 | 50             | Immediate        | Normal   | 2         | Stores the literal value of the second variable to the first.
 | 110            | Print            | Normal   | 1         | Prints the variable next to it to the screen.
-| 140            | Add              | Normal   | 2         | Adds the second variable's value to the first (also for string concatenation).
-| 170            | Subtract         | Normal   | 2         | Subtracts the second variable's value to the first.
-| 220            | Multiply         | Normal   | 2         | Multiplies the second variable's value to the first.
-| 260            | Divide           | Normal   | 2         | Divides the second variable's value to the first.
-| 310            | Cycle type       | Normal   | 1         | Cycles the next variable's type between integer and string.
+| 140            | Add              | Normal   | 3         | Adds the second variable's value to the third and stores it in the first (also for string concatenation).
+| 170            | Subtract         | Normal   | 3         | Subtracts the second variable's value to the third and stores it in the first.
+| 220            | Multiply         | Normal   | 3         | Multiplies the second variable's value to the third and stores it in the first.
+| 260            | Divide           | Normal   | 3         | Divides the second variable's value to the third and stores it in the first.
+| 310            | Cycle type       | Normal   | 1         | Cycles the next variable's type between number and string.
 | 390            | String define    | Encasing | 1         | Stores the unicode values of the non-required arguments as a string in the first argument.
 | 500            | User input       | Normal   | 1         | Asks the user for input and stores it in the argument as a string.
 | 600            | Function define  | Encasing | 1         | Defines a function  and stores it in the first argument.
