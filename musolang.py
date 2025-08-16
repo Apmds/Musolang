@@ -121,7 +121,7 @@ def main():
         description="An interpreter that executes music."
     )
     parser.add_argument("filename", help="audio file to be executed")
-    parser.add_argument("-i", "--interval", type=float, default=0.1, help="size of time intervals where commands are read (in seconds)")
+    parser.add_argument("-i", "--interval", type=float, default=1, help="size of time intervals where commands are read (in seconds)")
 
     args = parser.parse_args()
 
@@ -186,10 +186,13 @@ def main():
 
     symbol_table : dict[np.float64, Variable] = {}
 
+    #print(*actions, sep="\n")
+
     for action in actions:
-        ignore_undefined = not is_encasing_frequency(action.frequency) and not action.frequency == FREQ_VAR_INIT
+        ignore_undefined = not is_encasing_frequency(action.frequency) and not action.frequency == FREQ_VAR_INIT and not action.frequency == FREQ_IMMEDIATE
         action.parse_arguments(symbol_table, ignore_undefined=ignore_undefined)
 
+        #print(symbol_table)
         #print(action)
         if not action.is_valid():
             exit(1)
@@ -198,6 +201,10 @@ def main():
         if action.frequency == FREQ_IMMEDIATE:
             arg_store = action.arguments[0]
             arg_val = action.arguments[1]
+
+            if not arg_store in symbol_table:
+                print_undefined(arg_store)
+                exit(1)
 
             if symbol_table[arg_store].type != VariableType.NUMBER:
                 print(f"Cannot store a {VariableType.NUMBER} value on a {symbol_table[arg_store].type} variable (variable {arg0})", file=sys.stderr)
@@ -221,7 +228,7 @@ def main():
             # All types must be equal
             if symbol_table[arg_store].type != symbol_table[arg_left].type or \
                symbol_table[arg_store].type != symbol_table[arg_right].type:
-                print(f"Addition action is not supported between types {symbol_table[arg_left].type} and {symbol_table[arg_right].type}.", file=sys.stderr)
+                print(f"Addition between types {symbol_table[arg_left].type} and {symbol_table[arg_right].type} cannot be stored in {symbol_table[arg_store].type} variable.", file=sys.stderr)
                 exit(1)
 
             # Cannot add functions
