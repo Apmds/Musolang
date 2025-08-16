@@ -40,6 +40,9 @@ class VariableType(Enum):
     STRING = "string"
     FUNCTION = "funtion"
 
+    def __str__(self):
+        return str(self.value)
+
 class Action:
     '''Represents one of the action frequencies and their argument data'''
     def __init__(self, frequency : Frequency, arguments : list[Frequency], req_arguments : int):
@@ -132,8 +135,35 @@ def print_undefined(var : Variable):
     '''Prints the "undefined variable" error'''
     print(f"Variable {var.frequency} is not defined!", file=sys.stderr)
 
+def parse_frequencies(frequencies : list[Frequency]) -> list[Action]:
+    '''Parses the list of frequencies to get a list of actions'''
+    actions : list[Action] = []
+    
+    i : int = 0
+    while i < len(frequencies):
+        freq = frequencies[i]
+        if freq.is_action_frequency():
+            args : list[Frequency] = []
+            i += 1
+            while i < len(frequencies):
+                arg = frequencies[i]
+                if arg.is_action_frequency() and not freq.is_encasing():
+                    break
 
-def execute_immediate(action : Action, symbol_table : dict[Frequency, Action]):
+                if freq == arg and freq.is_encasing():
+                    i += 1
+                    break
+                    
+                args.append(arg)
+                i += 1
+            
+            actions.append(Action(freq, args, FREQ_ARGS[freq.value]))
+        else:
+            i += 1
+    
+    return actions
+
+def execute_immediate(action : Action, symbol_table : dict[Frequency, Variable]):
     '''Executes the FREQ_IMMEDIATE action'''
     arg_store = action.arguments[0]
     arg_val = action.arguments[1]
@@ -148,7 +178,7 @@ def execute_immediate(action : Action, symbol_table : dict[Frequency, Action]):
     
     symbol_table[arg_store].value = arg_val.value
 
-def execute_print(action : Action, symbol_table : dict[Frequency, Action]):
+def execute_print(action : Action, symbol_table : dict[Frequency, Variable]):
     '''Executes the FREQ_PRINT action'''
     arg0 = action.arguments[0]
     if symbol_table[arg0].type == VariableType.FUNCTION:
@@ -157,7 +187,7 @@ def execute_print(action : Action, symbol_table : dict[Frequency, Action]):
     
     print(symbol_table[arg0].value)
 
-def execute_add(action : Action, symbol_table : dict[Frequency, Action]):
+def execute_add(action : Action, symbol_table : dict[Frequency, Variable]):
     '''Executes the FREQ_ADD action'''
     arg_store = action.arguments[0]
     arg_left = action.arguments[1]
@@ -179,7 +209,7 @@ def execute_add(action : Action, symbol_table : dict[Frequency, Action]):
     # Strings can be added (concatenated) as well
     symbol_table[arg_store].value = symbol_table[arg_left].value + symbol_table[arg_right].value
 
-def execute_sub(action : Action, symbol_table : dict[Frequency, Action]):
+def execute_sub(action : Action, symbol_table : dict[Frequency, Variable]):
     '''Executes the FREQ_SUB action'''
     arg_store = action.arguments[0]
     arg_left = action.arguments[1]
@@ -194,7 +224,7 @@ def execute_sub(action : Action, symbol_table : dict[Frequency, Action]):
     
     symbol_table[arg_store].value = symbol_table[arg_left].value - symbol_table[arg_right].value
 
-def execute_mult(action : Action, symbol_table : dict[Frequency, Action]):
+def execute_mult(action : Action, symbol_table : dict[Frequency, Variable]):
     '''Executes the FREQ_MULT action'''
     arg_store = action.arguments[0]
     arg_left = action.arguments[1]
@@ -209,7 +239,7 @@ def execute_mult(action : Action, symbol_table : dict[Frequency, Action]):
     
     symbol_table[arg_store].value = symbol_table[arg_left].value * symbol_table[arg_right].value
 
-def execute_div(action : Action, symbol_table : dict[Frequency, Action]):
+def execute_div(action : Action, symbol_table : dict[Frequency, Variable]):
     '''Executes the FREQ_DIV action'''
     arg_store = action.arguments[0]
     arg_left = action.arguments[1]
@@ -228,7 +258,7 @@ def execute_div(action : Action, symbol_table : dict[Frequency, Action]):
     
     symbol_table[arg_store].value = symbol_table[arg_left].value / symbol_table[arg_right].value
 
-def execute_cycle_type(action : Action, symbol_table : dict[Frequency, Action]):
+def execute_cycle_type(action : Action, symbol_table : dict[Frequency, Variable]):
     '''Executes the FREQ_CYCLE_TYPE action'''
     arg0 = action.arguments[0]
 
@@ -248,10 +278,10 @@ def execute_cycle_type(action : Action, symbol_table : dict[Frequency, Action]):
             print(f"Type {symbol_table[arg0].type} cannot be used in cycle type action.", file=sys.stderr)
             exit(1)
 
-def execute_str_def(action : Action, symbol_table : dict[Frequency, Action]):
+def execute_str_def(action : Action, symbol_table : dict[Frequency, Variable]):
     '''Executes the FREQ_STR_DEF action'''
 
-def execute_input(action : Action, symbol_table : dict[Frequency, Action]):
+def execute_input(action : Action, symbol_table : dict[Frequency, Variable]):
     '''Executes the FREQ_INPUT action'''
     arg0 = action.arguments[0]
 
@@ -261,94 +291,42 @@ def execute_input(action : Action, symbol_table : dict[Frequency, Action]):
     
     symbol_table[arg0].value = input()
 
-def execute_func_def(action : Action, symbol_table : dict[Frequency, Action]):
+def execute_func_def(action : Action, symbol_table : dict[Frequency, Variable]):
     '''Executes the FREQ_FUNC_DEF action'''
+    arg_func = action.arguments[0]
+    
+    # Cannot define a function twice
+    if arg_func in symbol_table:
+        print(f"Variable {arg_func} was defined twice!", file=sys.stderr)
+        exit(1)
+    
+    symbol_table[arg_func] = Variable(arg_func, VariableType.FUNCTION, parse_frequencies(action.arguments[1:]))
 
-def execute_func_exec(action : Action, symbol_table : dict[Frequency, Action]):
+
+def execute_func_exec(action : Action, symbol_table : dict[Frequency, Variable]):
     '''Executes the FREQ_FUNC_EXEC action'''
+    arg_func = action.arguments[0]
 
-def execute_var_init(action : Action, symbol_table : dict[Frequency, Action]):
+    # Cannot define a function twice
+    if not arg_func in symbol_table:
+        print_undefined(arg_func)
+        exit(1)
+
+    if symbol_table[arg_func].type != VariableType.FUNCTION:
+        print(f"Can only execute a {VariableType.FUNCTION} variable, got {symbol_table[arg_func].type}.", file=sys.stderr)
+        exit(1)
+    
+    # Execute the function
+    run_actions(symbol_table[arg_func].value, symbol_table)
+
+def execute_var_init(action : Action, symbol_table : dict[Frequency, Variable]):
     '''Executes the FREQ_VAR_INIT action'''
     arg0 = action.arguments[0]
-    # Cannot define a variable twice
-    if arg0 in symbol_table:
-        print(f"Variable {arg0} was defined twice!", file=sys.stderr)
-        exit(1)
     
     symbol_table[arg0] = Variable(arg0, VariableType.NUMBER, 0)
 
-def main():
-    parser = argparse.ArgumentParser(
-        prog="musolang.py",
-        description="An interpreter that executes music."
-    )
-    parser.add_argument("filename", help="audio file to be executed")
-    parser.add_argument("-i", "--interval", type=float, default=1, help="size of time intervals where commands are read (in seconds)")
-
-    args = parser.parse_args()
-
-    file_path = args.filename
-    chunk_duration = args.interval
-
-    # Load audio file
-    y, sr = librosa.load(file_path, sr=None)
-
-    # Set chunk size in seconds
-    chunk_samples = int(chunk_duration * sr)
-
-    frequencies : list[Frequency] = []
-
-    # Loop through audio in chunks
-    for start_sample in range(0, len(y), chunk_samples):
-        end_sample = start_sample + chunk_samples
-        chunk = y[start_sample:end_sample]
-
-        # Skip if chunk is empty (happens at end of file)
-        if len(chunk) == 0:
-            continue
-
-        # FFT
-        fft_result = np.fft.fft(chunk)
-        fft_magnitude = np.abs(fft_result)[:len(fft_result)//2]
-        freqs = np.fft.fftfreq(len(chunk), d=1/sr)[:len(chunk)//2]
-
-        # Find dominant frequency
-        dominant_freq = freqs[np.argmax(fft_magnitude)]
-
-        start_timestamp = start_sample / sr
-        end_timestamp = end_sample / sr
-        #print(f"Time {start_timestamp:.2f}-{end_timestamp:.2f}s - Dominant frequency: {dominant_freq:.2f} Hz")
-
-        frequencies.append(Frequency(dominant_freq, start_timestamp, end_timestamp))
-    
-    # Parse the frequencies as actions
-    actions : list[Action] = []
-    
-    i : int = 0
-    while i < len(frequencies):
-        freq = frequencies[i]
-        if freq.is_action_frequency():
-            args : list[np.float64] = []
-            i += 1
-            while i < len(frequencies):
-                arg = frequencies[i]
-                if arg.is_action_frequency() and not freq.is_encasing():
-                    break
-
-                if freq == arg and freq.is_encasing():
-                    i += 1
-                    break
-                    
-                args.append(arg)
-                i += 1
-            
-            actions.append(Action(freq, args, FREQ_ARGS[freq.value]))
-        else:
-            i += 1
-
-    symbol_table : dict[Frequency, Variable] = {}
-
-    #print(*actions, sep="\n")
+def run_actions(actions : list[Action], symbol_table : dict[Frequency, Variable]):
+    '''Executes the list of actions with the context of the symbol table'''
 
     for action in actions:
         ignore_undefined = not action.frequency.is_encasing() and not action.frequency.value == FREQ_VAR_INIT and not action.frequency.value == FREQ_IMMEDIATE
@@ -395,7 +373,60 @@ def main():
         
         elif action.frequency.value == FREQ_VAR_INIT:
             execute_var_init(action, symbol_table)
-            
+
+def main():
+    parser = argparse.ArgumentParser(
+        prog="musolang.py",
+        description="An interpreter that executes music."
+    )
+    parser.add_argument("filename", help="audio file to be executed")
+    parser.add_argument("-i", "--interval", type=float, default=1, help="size of time intervals where commands are read (in seconds)")
+
+    args = parser.parse_args()
+
+    file_path = args.filename
+    chunk_duration = args.interval
+
+    # Load audio file
+    y, sr = librosa.load(file_path, sr=None)
+
+    # Set chunk size in seconds
+    chunk_samples = int(chunk_duration * sr)
+
+    frequencies : list[Frequency] = []
+
+    # Loop through audio in chunks
+    for start_sample in range(0, len(y), chunk_samples):
+        end_sample = start_sample + chunk_samples
+        chunk = y[start_sample:end_sample]
+
+        # Skip if chunk is empty (happens at end of file)
+        if len(chunk) == 0:
+            continue
+
+        # FFT
+        fft_result = np.fft.fft(chunk)
+        fft_magnitude = np.abs(fft_result)[:len(fft_result)//2]
+        freqs = np.fft.fftfreq(len(chunk), d=1/sr)[:len(chunk)//2]
+
+        # Find dominant frequency
+        dominant_freq = freqs[np.argmax(fft_magnitude)]
+
+        start_timestamp = start_sample / sr
+        end_timestamp = end_sample / sr
+        #print(f"Time {start_timestamp:.2f}-{end_timestamp:.2f}s - Dominant frequency: {dominant_freq:.2f} Hz")
+
+        frequencies.append(Frequency(dominant_freq, start_timestamp, end_timestamp))
+    
+    # Parse the frequencies as actions
+    actions : list[Action] = parse_frequencies(frequencies)
+
+    symbol_table : dict[Frequency, Variable] = {}
+
+    #print(*actions, sep="\n")
+
+    # Execute the actions
+    run_actions(actions, symbol_table)
 
 
 if __name__ == "__main__":
