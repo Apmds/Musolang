@@ -280,6 +280,21 @@ def execute_cycle_type(action : Action, symbol_table : dict[Frequency, Variable]
 
 def execute_str_def(action : Action, symbol_table : dict[Frequency, Variable]):
     '''Executes the FREQ_STR_DEF action'''
+    arg0 = action.arguments[0]
+
+    if symbol_table[arg0].type != VariableType.STRING:
+        print(f"Trying to give {VariableType.STRING} value to {symbol_table[arg0].type} variable ({arg0}).", file=sys.stderr)
+        exit(1)
+
+    res : bytearray = bytearray()
+    for i in action.arguments[1:]:
+        if not i.value.is_integer():
+            print(f"Frequency value must be an integer value, got {i.value}", file=sys.stderr)
+            exit(1)
+        
+        res.append(int(i.value))
+        
+    symbol_table[arg0].value = res.decode()
 
 def execute_input(action : Action, symbol_table : dict[Frequency, Variable]):
     '''Executes the FREQ_INPUT action'''
@@ -374,19 +389,7 @@ def run_actions(actions : list[Action], symbol_table : dict[Frequency, Variable]
         elif action.frequency.value == FREQ_VAR_INIT:
             execute_var_init(action, symbol_table)
 
-def main():
-    parser = argparse.ArgumentParser(
-        prog="musolang.py",
-        description="An interpreter that executes music."
-    )
-    parser.add_argument("filename", help="audio file to be executed")
-    parser.add_argument("-i", "--interval", type=float, default=1, help="size of time intervals where commands are read (in seconds)")
-
-    args = parser.parse_args()
-
-    file_path = args.filename
-    chunk_duration = args.interval
-
+def parse_audio_file(file_path : str, chunk_duration : float) -> list[Frequency]:
     # Load audio file
     y, sr = librosa.load(file_path, sr=None)
 
@@ -417,6 +420,23 @@ def main():
         #print(f"Time {start_timestamp:.2f}-{end_timestamp:.2f}s - Dominant frequency: {dominant_freq:.2f} Hz")
 
         frequencies.append(Frequency(dominant_freq, start_timestamp, end_timestamp))
+
+    return frequencies
+
+def main():
+    parser = argparse.ArgumentParser(
+        prog="musolang.py",
+        description="An interpreter that executes music."
+    )
+    parser.add_argument("filename", help="audio file to be executed")
+    parser.add_argument("-i", "--interval", type=float, default=1, help="size of time intervals where commands are read (in seconds)")
+
+    args = parser.parse_args()
+
+    file_path = args.filename
+    chunk_duration = args.interval
+
+    frequencies : list[Frequency] = parse_audio_file(file_path, chunk_duration)
     
     # Parse the frequencies as actions
     actions : list[Action] = parse_frequencies(frequencies)
