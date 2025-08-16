@@ -1,6 +1,6 @@
 import argparse
 import numpy as np
-import csv
+import re
 from scipy.io.wavfile import write
 
 def add_tone(start_time, freq, tone_duration, output, sample_rate, amplitude=0.5):
@@ -17,7 +17,7 @@ def main():
         prog="wavgen.py",
         description="Generates a .wav file based on a file of frequencies and timestamps."
     )
-    parser.add_argument("freqs", help="file with audio data. Each line is either empty or contains a frequency.")
+    parser.add_argument("freqs", help="file with audio data. Each line is either empty or contains one or more frequencies.")
     parser.add_argument("-i", "--interval", type=float, help="Time that each frequency lasts.", default=1)
     parser.add_argument("-o", "--output", help="Name of output file", default="tones.wav")
     parser.add_argument("-s", "--sample", type=int, help="Outputs sample rate in Hz.", default=44100)
@@ -29,34 +29,35 @@ def main():
     interval = args.interval
 
     file_duration : float = 0
-    with open(args.freqs, "r") as csvfile:
-        for line in csvfile:
+    with open(args.freqs, "r") as file:
+        for line in file:
             # Ignore empty lines
             if len(line.strip()) == 0:
                 continue
 
-            file_duration += interval
+            file_duration += interval * len(re.split(" +", line))
     output = np.zeros(int(sample_rate * file_duration))  # silent base track
 
     start_time = 0.0
 
-    with open(args.freqs, "r") as csvfile:
+    with open(args.freqs, "r") as file:
 
-        for i, line in enumerate(csvfile):
+        for i, line in enumerate(file):
             # Ignore empty lines
             if len(line.strip()) == 0:
                 continue
             
-            try:
-                freq = float(line)
+            for val in re.split(" +", line):
+                try:
+                    freq = float(val)
 
-                # Add tones at specific times
-                add_tone(start_time=start_time, freq=freq, tone_duration=interval, output=output, sample_rate=sample_rate)
-                start_time += interval
+                    # Add tones at specific times
+                    add_tone(start_time=start_time, freq=freq, tone_duration=interval, output=output, sample_rate=sample_rate)
+                    start_time += interval
 
-            except ValueError:
-                print(f"Wrong line formatting in line {i}: Line must only contain a number.")
-                exit(1)
+                except ValueError:
+                    print(f"Wrong line formatting in line {i}: Line must only contain one or more numbers.")
+                    exit(1)
 
     # Normalize to avoid clipping
     output = output / np.max(np.abs(output))
