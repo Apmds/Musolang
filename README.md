@@ -74,3 +74,7 @@ python3 wavgen.py [-i interval] [-o output_file] [-s sample_rate] frequencies_fi
 ```
 python3 musolang.py [-i interval] audio_file
 ```
+
+**Note**: the default chunk size (interval) is 1 second, because that allows the interpreter to recognize a **1** Hz diference. Using a 0.1 second interval is better for audio file size, but only **10** Hz diferences are recognized correctly.
+
+The [examples](examples/) directory contains both frequency files (```.txt```) and audio files (```.wav```) to understand the language.
